@@ -17,26 +17,65 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=for-the-badge&logo=node.js)](https://nodejs.org)
 
-[🎯 Quick Start](#-quick-start) • [📖 API Docs](./docs/API.md) • [🎨 Examples](./docs/EXAMPLES.md) • [⭐ Star](https://github.com/sehmim/mcphy)
+**🚀 Ready to try?** `npm install -g mcphy` • [🎯 Quick Start](#-quick-start) • [📖 API Docs](./docs/API.md) • [🎨 Examples](./docs/EXAMPLES.md) • [⭐ Star](https://github.com/sehmim/mcphy)
 
 ---
 
 </div>
 
+## Requirements
+
+- **Node.js** >= 18.0.0
+- **npm** >= 9.0.0
+- An API specification file (Swagger/OpenAPI)
+
+## Installation
+
+```bash
+# Option 1: Install globally
+npm install -g mcphy
+
+# Option 2: Try without installing
+npx mcphy --help
+```
+
 ## Quick Start
 
 ```bash
-# Install globally
-npm install -g mcphy
-
-# Initialize with your API spec
+# 1. Initialize with your API spec
 mcphy init
 
-# Start the conversational server
+# 2. Start the conversational server
+mcphy serve
+
+# 3. Open your browser
+open http://localhost:3000
+```
+
+**That's it!** Start chatting with your API in plain English.
+
+## Try It Now
+
+Want to test MCPhy immediately? Use our included example:
+
+```bash
+# Clone and test with example API
+git clone https://github.com/sehmim/mcphy.git
+cd mcphy
+npm install
+npm run build
+npm link
+
+# Test with example
+cd examples
+mcphy init -f sample-swagger.yaml
 mcphy serve
 ```
 
-Visit `http://localhost:3000` and start chatting with your API!
+Then open `http://localhost:3000` and try:
+- "Show me all pets"
+- "Create a new pet named Max"
+- "Get pet with ID 1"
 
 ## What It Does
 
