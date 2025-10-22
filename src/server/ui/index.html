@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCPHy - Conversational API Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#64748B',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 h-screen overflow-hidden">
+    <div class="flex h-full">
+        <!-- Main Chat Area -->
+        <div class="flex-1 flex flex-col">
+            <!-- Header -->
+            <header class="bg-white border-b border-gray-200 px-6 py-4">
+                <h1 class="text-2xl font-bold text-gray-900">MCPHy</h1>
+                <p class="text-sm text-gray-600 mt-1">Chat with your API using natural language</p>
+            </header>
+
+            <!-- Chat Container -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Messages -->
+                <div id="messages" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="text-sm">
+                            <p class="font-semibold text-blue-900 mb-2">Welcome to MCPHy!</p>
+                            <p class="text-blue-800 mb-2">Ask questions about your API in plain English. For example:</p>
+                            <ul class="text-blue-700 space-y-1 text-xs">
+                                <li>• "Get all pets created after October 14, 2025"</li>
+                                <li>• "Create a new user"</li>
+                                <li>• "Update product with ID 123"</li>
+                                <li>• "Delete the user with email test@example.com"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Form -->
+                <div class="bg-white border-t border-gray-200 px-6 py-4">
+                    <form id="queryForm" class="flex space-x-3">
+                        <input
+                            type="text"
+                            id="queryInput"
+                            placeholder="Type your question here..."
+                            autocomplete="off"
+                            required
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                        />
+                        <button 
+                            type="submit" 
+                            id="sendButton"
+                            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
+                        >
+                            <span id="sendText">Send</span>
+                            <span id="loadingText" class="hidden">...</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="w-80 bg-white border-l border-gray-200 flex flex-col">
+            <!-- Available Endpoints -->
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-900 mb-3">Available Endpoints</h3>
+                <div id="availableEndpoints" class="space-y-2 max-h-64 overflow-y-auto">
+                    <div class="text-sm text-gray-500">Loading endpoints...</div>
+                </div>
+            </div>
+            
+            <!-- Called Endpoints -->
+            <div class="p-4 flex-1">
+                <h3 class="text-sm font-semibold text-gray-900 mb-3">Called Endpoints</h3>
+                <div id="calledEndpoints" class="space-y-2 max-h-64 overflow-y-auto">
+                    <div class="text-sm text-gray-500">No endpoints called yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

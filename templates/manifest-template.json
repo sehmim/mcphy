@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "name": "API Server",
+  "description": "MCP-enabled API Server",
+  "endpoints": [
+    {
+      "path": "/example",
+      "method": "GET",
+      "description": "Example endpoint",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Resource identifier",
+          "location": "query"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "name": "mcphy",
+  "version": "0.1.0",
+  "description": "Turn your API into a Conversational MCP Server",
+  "main": "dist/index.js",
+  "bin": {
+    "mcphy": "./bin/mcphy.js"
+  },
+  "scripts": {
+    "build": "tsc && npm run copy-ui",
+    "copy-ui": "node -e \"require('fs-extra').copySync('src/server/ui', 'dist/server/ui')\"",
+    "dev": "tsc --watch",
+    "prepare": "npm run build",
+    "start": "node dist/cli.js serve",
+    "export": "node dist/cli.js export",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "api",
+    "swagger",
+    "openapi",
+    "conversational",
+    "server",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^9.2.15",
+    "openai": "^4.28.0",
+    "swagger-parser": "^10.0.3",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.11.0",
+    "@types/swagger-parser": "^7.0.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
