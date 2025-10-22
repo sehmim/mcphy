@@ -1,5 +1,5 @@
 /**
- * MCPHy - Turn your API into a Conversational MCP Server
+ * MCPhy - Turn your API into a Conversational MCP Server
  * Main entry point for programmatic usage
  */
 

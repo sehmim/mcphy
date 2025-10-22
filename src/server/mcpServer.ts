@@ -204,7 +204,7 @@ export class MCPServer {
   async start(): Promise<void> {
     return new Promise((resolve) => {
       this.app.listen(this.port, () => {
-        console.log('\n🚀 MCPHy running at http://localhost:' + this.port);
+        console.log('\n🚀 MCPhy running at http://localhost:' + this.port);
         console.log('💬 Open in your browser to chat with your backend\n');
         Logger.info(`Web UI: http://localhost:${this.port}/`);
         Logger.info(`Query Endpoint: http://localhost:${this.port}/mcp/query (GET/POST)`);

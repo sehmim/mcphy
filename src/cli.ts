@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * MCPHy CLI - Turn your API into a Conversational MCP Server
+ * MCPhy CLI - Turn your API into a Conversational MCP Server
  */
 
 import { Command } from 'commander';
@@ -47,12 +47,12 @@ program
  */
 program
   .command('init')
-  .description('Initialize MCPHy project by detecting API specification')
+  .description('Initialize MCPhy project by detecting API specification')
   .option('-f, --file <path>', 'Path to API specification file')
   .option('-o, --output <path>', 'Output path for config file', '.mcphy.json')
   .action(async (options) => {
     try {
-      Logger.info('Initializing MCPHy project...');
+      Logger.info('Initializing MCPhy project...');
 
       let apiSpecPath: string;
 
@@ -133,10 +133,10 @@ program
       await fs.writeJSON(configPath, config, { spaces: 2 });
 
       Logger.success(`Configuration saved to ${configPath}`);
-      Logger.success('MCPHy initialized successfully!');
+      Logger.success('MCPhy initialized successfully!');
       Logger.info('Run "mcphy serve" to start the MCP server');
     } catch (error) {
-      Logger.error('Failed to initialize MCPHy', error as Error);
+      Logger.error('Failed to initialize MCPhy', error as Error);
       process.exit(1);
     }
   });
@@ -209,17 +209,17 @@ program
 
 /**
  * mcphy export
- * Export MCPHy as a standalone package
+ * Export MCPhy as a standalone package
  */
 program
   .command('export')
-  .description('Export MCPHy as a standalone package with your configuration')
+  .description('Export MCPhy as a standalone package with your configuration')
   .option('-o, --output <dir>', 'Output directory for export', 'mcphy-export')
   .option('-c, --config <file>', 'Path to .mcphy.json config file', '.mcphy.json')
   .option('--include-node-modules', 'Include node_modules in export', false)
   .action(async (options) => {
     try {
-      Logger.info('Exporting MCPHy...');
+      Logger.info('Exporting MCPhy...');
       
       // Run the export script
       const exportScript = path.join(__dirname, '..', 'scripts', 'export.js');

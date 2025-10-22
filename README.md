@@ -24,9 +24,9 @@
 
 </div>
 
-## 🎬 What is MCPHy?
+## 🎬 What is MCPhy?
 
-**MCPHy** is a revolutionary CLI tool and Node.js library that bridges the gap between traditional REST APIs and conversational AI. Simply point it at your **Swagger/OpenAPI** specification, and watch your API transform into an intelligent **Model Context Protocol (MCP)** server with natural language understanding.
+**MCPhy** is a revolutionary CLI tool and Node.js library that bridges the gap between traditional REST APIs and conversational AI. Simply point it at your **Swagger/OpenAPI** specification, and watch your API transform into an intelligent **Model Context Protocol (MCP)** server with natural language understanding.
 
 > **TL;DR**: Feed it an API spec → Get a conversational AI interface. Ask questions in plain English → Get precise API calls.
 
@@ -48,7 +48,7 @@ mcphy serve
 
 ---
 
-## 🌟 What Makes MCPHy Special?
+## 🌟 What Makes MCPhy Special?
 
 <table>
 <tr>
@@ -108,7 +108,7 @@ cd your-api-project
 mcphy init
 ```
 
-MCPHy will:
+MCPhy will:
 - 🔍 Auto-detect your API spec (`swagger.yaml`, `openapi.json`, etc.)
 - ✅ Validate the specification
 - 📝 Generate MCP manifest
@@ -123,7 +123,7 @@ For AI-powered query matching, add your OpenAI API key:
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
 ```
 
-> **No OpenAI key?** No problem! MCPHy falls back to keyword-based matching.
+> **No OpenAI key?** No problem! MCPhy falls back to keyword-based matching.
 
 #### **Step 3️⃣: Launch**
 
@@ -132,7 +132,7 @@ mcphy serve
 ```
 
 ```
-🚀 MCPHy running at http://localhost:3000
+🚀 MCPhy running at http://localhost:3000
 💬 Open in your browser to chat with your backend
 ```
 
@@ -151,7 +151,7 @@ Open `http://localhost:3000` and start chatting with your API:
 ```
 You:  "Get all pets created after October 14, 2025"
 
-MCPHy: ✅ Found endpoint!
+MCPhy: ✅ Found endpoint!
        📍 GET /pets
        🔧 Parameters: { created_after: "2025-10-14" }
        🎯 Confidence: 85%
@@ -176,7 +176,7 @@ MCPHy: ✅ Found endpoint!
 
 ### 🎬 `mcphy init`
 
-Initialize a new MCPHy project
+Initialize a new MCPhy project
 
 ```bash
 mcphy init [options]
@@ -256,7 +256,7 @@ mcphy export -o my-api-package --include-node-modules
 ```
 
 **What's Included:**
-- ✅ Complete MCPHy runtime
+- ✅ Complete MCPhy runtime
 - ✅ Your API spec & config
 - ✅ Startup scripts (`.sh` + `.bat`)
 - ✅ Custom README
@@ -268,7 +268,7 @@ mcphy export -o my-api-package --include-node-modules
 
 ### 💻 Programmatic API
 
-Use MCPHy as a library in your Node.js projects:
+Use MCPhy as a library in your Node.js projects:
 
 ```typescript
 import { MCPServer, SwaggerAPIParser, ManifestGenerator } from 'mcphy';
@@ -323,7 +323,7 @@ curl "http://localhost:3000/mcp/query?q=Get%20all%20pets"
 
 ### 🧪 Test with Sample API
 
-MCPHy includes a sample Pet Store API:
+MCPhy includes a sample Pet Store API:
 
 ```bash
 cd examples
@@ -437,7 +437,7 @@ npm run dev
 
 ## 🧠 How Natural Language Matching Works
 
-MCPHy uses a two-tier intelligent matching system:
+MCPhy uses a two-tier intelligent matching system:
 
 ### **🤖 Tier 1: AI-Powered (with OpenAI)**
 - Uses **GPT-4-mini** for semantic understanding
@@ -597,21 +597,21 @@ Want to see your project here? Submit a PR!
 <details>
 <summary><b>Do I need an OpenAI API key?</b></summary>
 
-No! MCPHy works without an OpenAI key using keyword-based fallback matching. However, for best results, we recommend using GPT-4-mini for intelligent query understanding.
+No! MCPhy works without an OpenAI key using keyword-based fallback matching. However, for best results, we recommend using GPT-4-mini for intelligent query understanding.
 
 </details>
 
 <details>
 <summary><b>Can I use this in production?</b></summary>
 
-MCPHy is currently in active development (v0.1.0). It's great for development, testing, and prototyping. For production use, we recommend waiting for v1.0.0 or implementing additional security measures.
+MCPhy is currently in active development (v0.1.0). It's great for development, testing, and prototyping. For production use, we recommend waiting for v1.0.0 or implementing additional security measures.
 
 </details>
 
 <details>
 <summary><b>Does it work with GraphQL?</b></summary>
 
-Not yet! GraphQL support is on our roadmap. Currently, MCPHy supports REST APIs via Swagger/OpenAPI specifications.
+Not yet! GraphQL support is on our roadmap. Currently, MCPhy supports REST APIs via Swagger/OpenAPI specifications.
 
 </details>
 
@@ -634,13 +634,13 @@ Without OpenAI: ~60-75% accuracy using keyword matching
 
 ## 📜 License
 
-MIT © 2025 MCPHy
+MIT © 2025 MCPhy
 
 ---
 
 ## 💖 Support
 
-Love MCPHy? Here's how you can help:
+Love MCPhy? Here's how you can help:
 
 - ⭐ Star this repository
 - 🐛 Report bugs via [GitHub Issues](https://github.com/yourusername/mcphy/issues)
