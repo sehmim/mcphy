@@ -1,6 +1,6 @@
 {
   "name": "mcphy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Turn your API into a Conversational MCP Server",
   "main": "dist/index.js",
   "bin": {
@@ -20,9 +20,13 @@
     "api",
     "swagger",
     "openapi",
+    "postman",
     "conversational",
     "server",
-    "cli"
+    "cli",
+    "llm",
+    "gpt-4",
+    "ai"
   ],
   "author": "MCPhy Contributors",
   "license": "MIT",

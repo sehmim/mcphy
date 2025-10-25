@@ -11,16 +11,35 @@ import { MCPManifest, MCPEndpoint } from './manifest';
 // Load environment variables
 dotenv.config();
 
+export interface ParameterDetail {
+  name: string;
+  value: any;
+  description?: string;
+  type?: string;
+  required?: boolean;
+  location?: string;
+  source: 'extracted' | 'default' | 'missing' | 'optional';
+}
+
 export interface QueryMatchResult {
   endpoint: string;
   method: string;
   params?: Record<string, any>;
   confidence?: number;
   reasoning?: string;
+  
+  // Enhanced fields for UI
+  summary: string;
+  endpointDescription?: string;
+  parameterDetails?: ParameterDetail[];
+  expectedResponse?: string;
+  apiName?: string;
+  
   missingInfo?: {
     requiredParams: string[];
     suggestions: string[];
     exampleQuery: string;
+    requestBodyFields?: string[];
   };
   guidance?: string;
 }
@@ -28,9 +47,11 @@ export interface QueryMatchResult {
 export class QueryMatcher {
   private openai: OpenAI | null = null;
   private manifest: MCPManifest;
+  private modelName: string;
 
-  constructor(manifest: MCPManifest, openaiApiKey?: string | null) {
+  constructor(manifest: MCPManifest, openaiApiKey?: string | null, modelName?: string) {
     this.manifest = manifest;
+    this.modelName = modelName || 'gpt-4o-mini';
 
     // Initialize OpenAI client if API key is available
     const apiKey = openaiApiKey || process.env.OPENAI_API_KEY;
@@ -38,7 +59,7 @@ export class QueryMatcher {
       this.openai = new OpenAI({
         apiKey: apiKey,
       });
-      Logger.info('OpenAI client initialized for AI-powered query matching');
+      Logger.info(`OpenAI client initialized for AI-powered query matching (model: ${this.modelName})`);
     } else {
       Logger.warn('OpenAI API key not found in config or environment variables');
       Logger.info('Query matching will use fallback logic instead of AI');
@@ -65,43 +86,60 @@ export class QueryMatcher {
   }
 
   /**
-   * Match query using OpenAI GPT-4-mini
-   * TODO: Implement OpenAI API call
+   * Match query using OpenAI with flexible model support
    */
   private async matchWithOpenAI(query: string): Promise<QueryMatchResult> {
     if (!this.openai) {
       throw new Error('OpenAI client not initialized');
     }
 
-    // Build context from manifest endpoints
-    const endpointsContext = this.buildEndpointsContext();
+    try {
+      // Build rich context from manifest with full documentation
+      const endpointsContext = this.buildRichEndpointsContext();
+      const apiContext = this.buildAPIContext();
 
-    // TODO: Implement OpenAI API call
-    // Example structure:
-    // const completion = await this.openai.chat.completions.create({
-    //   model: 'gpt-4-mini',
-    //   messages: [
-    //     {
-    //       role: 'system',
-    //       content: `You are an API endpoint matcher. Given a natural language query and a list of available API endpoints, identify the best matching endpoint and extract parameters.
-    //
-    //       Available endpoints:
-    //       ${endpointsContext}
-    //
-    //       Return a JSON object with: endpoint (path), method (HTTP method), params (extracted parameters), confidence (0-1), reasoning (why this endpoint matches).`
-    //     },
-    //     {
-    //       role: 'user',
-    //       content: query
-    //     }
-    //   ],
-    //   response_format: { type: 'json_object' },
-    //   temperature: 0.3,
-    // });
+      const systemPrompt = `You are an expert API assistant for ${this.manifest.name}.
 
-    // For now, return a stub response
-    Logger.warn('OpenAI matching not yet implemented, using fallback');
-    return this.matchWithFallback(query);
+${apiContext}
+
+Available Endpoints:
+${endpointsContext}
+
+Your task: Analyze the user's query and return a JSON response with:
+- endpoint: The matching API path
+- method: HTTP method (uppercase)
+- params: Extracted parameters as key-value pairs (include ALL extracted values from the query)
+- confidence: Match confidence (0-1)
+- reasoning: Why this endpoint matches
+- summary: A clear, user-friendly summary of what will happen (e.g., "Creating a booking for John Doe on 2025-01-15")
+- expectedResponse: What the user should expect back from the API
+- missingInfo: If required parameters are missing, include:
+  - requiredParams: Array of missing parameter names
+  - suggestions: Array of helpful suggestions
+  - exampleQuery: A complete example query with all required info
+
+Extract ALL relevant information from the query and match it to the correct parameters. Be thorough in parameter extraction.`;
+
+      Logger.info(`Calling ${this.modelName} for query matching...`);
+
+      const response = await this.openai.chat.completions.create({
+        model: this.modelName,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: query }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.3,
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{}');
+      
+      // Enrich result with manifest data
+      return this.enrichResult(result, query);
+    } catch (error) {
+      Logger.error('LLM matching failed, falling back to keyword matching', error as Error);
+      return this.matchWithFallback(query);
+    }
   }
 
   /**
@@ -188,12 +226,23 @@ export class QueryMatcher {
     // Check for missing required information
     const missingInfo = this.analyzeMissingInformation(query, bestMatch, params);
 
+    // Build rich response even for fallback
+    const summary = this.generateFallbackSummary(
+      { endpoint: bestMatch.path, method: bestMatch.method },
+      query
+    );
+
     return {
       endpoint: bestMatch.path,
       method: bestMatch.method,
       params,
       confidence: maxScore / 10, // Normalize to 0-1
       reasoning: `Matched based on keywords (score: ${maxScore})`,
+      summary,
+      apiName: this.manifest.name,
+      endpointDescription: bestMatch.description,
+      parameterDetails: this.buildParameterDetails(params, bestMatch),
+      expectedResponse: 'API response will be returned after execution',
       missingInfo,
       guidance: missingInfo ? this.generateGuidance(missingInfo, bestMatch) : undefined,
     };
@@ -252,6 +301,100 @@ export class QueryMatcher {
    Parameters: ${params}`;
       })
       .join('\n\n');
+  }
+
+  /**
+   * Build API-level context for LLM
+   */
+  private buildAPIContext(): string {
+    return `API Name: ${this.manifest.name}
+Description: ${this.manifest.description}
+Version: ${this.manifest.version}`;
+  }
+
+  /**
+   * Build rich endpoints context with full documentation
+   */
+  private buildRichEndpointsContext(): string {
+    return this.manifest.endpoints
+      .map((endpoint, idx) => {
+        const params =
+          endpoint.parameters
+            ?.map(
+              (p) =>
+                `  - ${p.name} (${p.type}, ${p.required ? 'required' : 'optional'}, in: ${p.location})${
+                  p.description ? `\n    Description: ${p.description}` : ''
+                }`
+            )
+            .join('\n') || '  No parameters';
+
+        return `${idx + 1}. ${endpoint.method} ${endpoint.path}
+   Description: ${endpoint.description || 'No description available'}
+   Parameters:
+${params}${endpoint.response ? `\n   Expected Response: ${JSON.stringify(endpoint.response)}` : ''}`;
+      })
+      .join('\n\n');
+  }
+
+  /**
+   * Enrich LLM result with manifest data
+   */
+  private enrichResult(llmResult: any, originalQuery: string): QueryMatchResult {
+    const matchedEndpoint = this.manifest.endpoints.find(
+      (ep) => ep.path === llmResult.endpoint && ep.method === llmResult.method
+    );
+
+    return {
+      ...llmResult,
+      apiName: this.manifest.name,
+      endpointDescription: matchedEndpoint?.description,
+      summary: llmResult.summary || this.generateFallbackSummary(llmResult, originalQuery),
+      parameterDetails: this.buildParameterDetails(llmResult.params || {}, matchedEndpoint),
+      expectedResponse: llmResult.expectedResponse || 'API response will be returned after execution',
+    };
+  }
+
+  /**
+   * Build detailed parameter information
+   */
+  private buildParameterDetails(
+    extractedParams: Record<string, any>,
+    endpoint?: MCPEndpoint
+  ): ParameterDetail[] {
+    if (!endpoint?.parameters) return [];
+
+    return endpoint.parameters.map((param) => {
+      const hasValue = param.name in extractedParams;
+      return {
+        name: param.name,
+        value: hasValue ? extractedParams[param.name] : undefined,
+        description: param.description,
+        type: param.type,
+        required: param.required,
+        location: param.location,
+        source: hasValue ? 'extracted' : param.required ? 'missing' : 'optional',
+      };
+    });
+  }
+
+  /**
+   * Generate fallback summary if LLM doesn't provide one
+   */
+  private generateFallbackSummary(result: any, query: string): string {
+    const action =
+      result.method === 'GET'
+        ? 'Retrieving'
+        : result.method === 'POST'
+        ? 'Creating'
+        : result.method === 'PUT'
+        ? 'Updating'
+        : result.method === 'DELETE'
+        ? 'Deleting'
+        : 'Processing';
+
+    const resource =
+      result.endpoint?.split('/').filter((p: string) => p && !p.startsWith('{'))?.pop() || 'resource';
+    return `${action} ${resource} based on your request`;
   }
 
   /**

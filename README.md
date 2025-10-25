@@ -27,7 +27,8 @@
 
 - **Node.js** >= 18.0.0
 - **npm** >= 9.0.0
-- An API specification file (Swagger/OpenAPI)
+- An API specification file (Swagger/OpenAPI or Postman Collection)
+- **OpenAI API Key** (optional, for enhanced AI-powered understanding)
 
 ## Installation
 
@@ -53,6 +54,30 @@ open http://localhost:3000
 ```
 
 **That's it!** Start chatting with your API in plain English.
+
+### 🚨 Initialization Issues?
+
+If `mcphy init` fails, here are quick fixes:
+
+**❌ No API spec found?**
+```bash
+# Specify your API spec file explicitly
+mcphy init -f path/to/your/swagger.yaml
+```
+
+**❌ Invalid specification?**
+```bash
+# Validate your spec first
+mcphy validate path/to/your/api.yaml
+```
+
+**❌ File not found?**
+```bash
+# Check the file exists and use absolute path
+mcphy init -f /full/path/to/api.yaml
+```
+
+**📖 See [Full Troubleshooting Guide](./docs/troubleshooting.md) for detailed solutions**
 
 ## Try It Now
 
@@ -84,6 +109,10 @@ Then open `http://localhost:3000` and try:
 - **⚠️ Smart Guidance** - Helps when information is missing
 - **💬 Web Interface** - Beautiful chat UI with real-time responses
 - **📦 Export Ready** - Create standalone packages
+- **🤖 Smart Enhancement** - Optional AI-powered API understanding 🆕
+  - **LLM-Powered** - GPT-4 enhances descriptions, parameters, and examples
+  - **Pattern-Based Fallback** - Smart enhancements even without AI
+  - **OpenAPI/Swagger & Postman** - Works with all major API formats
 
 ## Example
 
@@ -117,7 +146,43 @@ MCPhy: ✅ Matched POST /bookings
 
 - ✅ OpenAPI 3.0+
 - ✅ Swagger 2.0
-- ⏳ Postman Collections (coming soon)
+- ✅ **Postman Collections (with LLM-powered parsing)** 🆕
+
+### 🚀 New: LLM-Powered API Parsing
+
+MCPhy now uses GPT-4 to intelligently understand and enhance **all** API specifications!
+
+#### OpenAPI/Swagger Enhancement
+- 📝 **Enhanced Descriptions** - Generates user-friendly API descriptions
+- 🔍 **Better Parameter Docs** - Adds context and examples to parameters
+- 💡 **Usage Examples** - Provides practical endpoint usage guidance
+- 🎯 **Smart Summaries** - Creates clear, concise operation summaries
+- 🔗 **Workflow Discovery** - Identifies common API patterns
+
+#### Postman Collection Support
+- 🤖 **Deep Understanding** - Analyzes collection structure and intent
+- 📦 **Automatic Conversion** - Transforms to OpenAPI-compatible format
+- 🔍 **Smart Detection** - Auto-detects collections in your project
+- 📝 **Rich Parsing** - Extracts parameters, headers, body schemas
+- 🌐 **Base URL Extraction** - Finds API base URL from variables
+
+**Usage:**
+```bash
+# Works with any format - OpenAPI, Swagger, or Postman
+mcphy init -f api-spec.yaml
+mcphy init -f swagger.json
+mcphy init -f postman_collection.json
+
+# Validate any format
+mcphy validate your-api-file
+```
+
+**💡 OpenAI API Key Benefits (Optional):**
+- 🤖 **Enhanced Understanding** - Powers intelligent API analysis
+- 📝 **Rich Descriptions** - Generates comprehensive documentation
+- 🔍 **Smart Parameter Docs** - Adds context-aware explanations
+- 💡 **Usage Examples** - Provides practical guidance for endpoints
+- 🚀 **Works Without It** - Basic parsing is fully functional
 
 ## Documentation
 

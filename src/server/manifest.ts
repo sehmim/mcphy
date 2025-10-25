@@ -56,6 +56,31 @@ export class ManifestGenerator {
   }
 
   /**
+   * Generate MCP manifest from parsed Postman collection
+   */
+  static async generateFromPostman(apiSpec: any): Promise<MCPManifest> {
+    const manifest: MCPManifest = {
+      version: '1.0.0',
+      name: apiSpec.info?.title || 'API Server',
+      description: apiSpec.info?.description || 'MCP-enabled API Server',
+      endpoints: [],
+    };
+
+    // Parse paths from Postman collection (same structure as OpenAPI after parsing)
+    if (apiSpec.paths) {
+      for (const [pathName, pathItem] of Object.entries(apiSpec.paths)) {
+        for (const [method, operation] of Object.entries(pathItem as any)) {
+          if (['get', 'post', 'put', 'delete', 'patch'].includes(method)) {
+            manifest.endpoints.push(this.parseEndpoint(pathName, method, operation));
+          }
+        }
+      }
+    }
+
+    return manifest;
+  }
+
+  /**
    * Parse individual endpoint from OpenAPI operation
    */
   private static parseEndpoint(path: string, method: string, operation: any): MCPEndpoint {

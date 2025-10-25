@@ -5,8 +5,12 @@ Welcome to the MCPhy documentation! This guide will help you understand and use 
 ## 📚 Documentation Index
 
 ### Getting Started
+- [Quick Start](./quick-start.md) - ⭐ Get up and running in minutes
+- [LLM Enhancement](./LLM_ENHANCEMENT.md) - 🤖 AI-powered API understanding
+- [Postman Guide](./POSTMAN_GUIDE.md) - 📮 Using Postman collections
+- [Common Issues](./COMMON_ISSUES.md) - 🚨 Quick reference for common problems
+- [Troubleshooting](./troubleshooting.md) - 🔧 Detailed solutions for all issues
 - [Installation](./installation.md) - How to install MCPhy
-- [Quick Start](./quick-start.md) - Get up and running in minutes
 - [Configuration](./configuration.md) - Setting up your project
 
 ### User Guide

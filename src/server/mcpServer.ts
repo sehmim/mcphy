@@ -15,6 +15,7 @@ export interface MCPServerOptions {
   configPath?: string;
   openaiApiKey?: string | null;
   apiBaseUrl?: string;
+  llmModel?: string;
 }
 
 export class MCPServer {
@@ -28,7 +29,7 @@ export class MCPServer {
     this.app = express();
     this.port = options.port;
     this.manifest = options.manifest;
-    this.queryMatcher = new QueryMatcher(options.manifest, options.openaiApiKey);
+    this.queryMatcher = new QueryMatcher(options.manifest, options.openaiApiKey, options.llmModel);
     this.apiBaseUrl = options.apiBaseUrl || 'http://localhost:8000';
 
     this.setupMiddleware();
@@ -261,7 +262,8 @@ export async function startFromConfig(configPath: string, port: number = 3000): 
       manifest, 
       configPath, 
       openaiApiKey: config.openaiApiKey,
-      apiBaseUrl: config.apiBaseUrl
+      apiBaseUrl: config.apiBaseUrl,
+      llmModel: config.llmModel
     });
     await server.start();
 
