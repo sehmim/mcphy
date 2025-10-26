@@ -1,31 +1,34 @@
-/* MCPhy UI - Minimal custom styles to complement Tailwind */
+/* MCPhy UI - Minimalist Monochrome Design */
 
 /* Custom scrollbar for better UX */
 ::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: #fafafa;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
+    background: #d1d5db;
+    border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #9ca3af;
 }
 
-/* Smooth transitions */
-* {
-    transition: all 0.2s ease-in-out;
+/* Smooth transitions - selective */
+button,
+input,
+.message {
+    transition: all 0.15s ease-in-out;
 }
 
 /* Focus styles for better accessibility */
 input:focus,
-button:focus {
+button:focus,
+textarea:focus {
     outline: none;
 }
 
@@ -33,7 +36,7 @@ button:focus {
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(8px);
     }
     to {
         opacity: 1;
@@ -41,8 +44,9 @@ button:focus {
     }
 }
 
-.message {
-    animation: fadeIn 0.3s ease-out;
+.message,
+#messages > div {
+    animation: fadeIn 0.25s ease-out;
 }
 
 /* Loading animation */
@@ -51,12 +55,38 @@ button:focus {
         opacity: 1;
     }
     50% {
-        opacity: 0.5;
+        opacity: 0.6;
     }
 }
 
 .loading {
-    animation: pulse 2s infinite;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Enhanced card shadows */
+.shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Form input enhancements */
+input[type="text"],
+textarea {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+input[type="text"]::placeholder,
+textarea::placeholder {
+    color: #9ca3af;
+}
+
+/* Button hover effects */
+button:hover {
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
 }
 
 /* Responsive adjustments */
@@ -64,4 +94,15 @@ button:focus {
     .sidebar {
         display: none;
     }
+}
+
+/* Monochrome color palette overrides */
+:root {
+    --color-primary: #1f2937;
+    --color-secondary: #6b7280;
+    --color-border: #e5e7eb;
+    --color-bg: #f9fafb;
+    --color-card: #ffffff;
+    --color-text: #111827;
+    --color-text-muted: #6b7280;
 }

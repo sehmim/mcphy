@@ -50,16 +50,73 @@ export class ApiService {
 
     /**
      * Make an API call through the proxy
-     * @param {string} endpoint - The endpoint path
+     * @param {string} endpoint - The endpoint path (may contain {param} placeholders)
      * @param {string} method - The HTTP method
      * @param {Object} params - The parameters to send
+     * @param {Array} parameterDetails - Optional parameter details with location info
      * @returns {Promise<Object>} API response
      * @throws {Error} If the request fails
      */
-    static async makeApiCall(endpoint, method, params = {}) {
+    static async makeApiCall(endpoint, method, params = {}, parameterDetails = null) {
         try {
+            // Separate parameters by location
+            const pathParams = {};
+            const queryParams = {};
+            const bodyParams = {};
+
+            // If we have parameter details, use them to categorize
+            if (parameterDetails && Array.isArray(parameterDetails)) {
+                parameterDetails.forEach(detail => {
+                    const value = params[detail.name];
+                    if (value !== undefined) {
+                        if (detail.location === 'path') {
+                            pathParams[detail.name] = value;
+                        } else if (detail.location === 'query') {
+                            queryParams[detail.name] = value;
+                        } else if (detail.location === 'body') {
+                            bodyParams[detail.name] = value;
+                        }
+                    }
+                });
+
+                // Any params not in parameterDetails go to body for POST/PUT/PATCH, query for GET
+                Object.keys(params).forEach(key => {
+                    if (!parameterDetails.some(d => d.name === key)) {
+                        if (method === 'GET') {
+                            queryParams[key] = params[key];
+                        } else {
+                            bodyParams[key] = params[key];
+                        }
+                    }
+                });
+            } else {
+                // Fallback: no parameter details, use simple logic
+                Object.keys(params).forEach(key => {
+                    // Check if this is a path parameter
+                    if (endpoint.includes(`{${key}}`)) {
+                        pathParams[key] = params[key];
+                    } else if (method === 'GET') {
+                        queryParams[key] = params[key];
+                    } else {
+                        bodyParams[key] = params[key];
+                    }
+                });
+            }
+
+            // Replace path parameters in the endpoint
+            let finalEndpoint = endpoint;
+            Object.keys(pathParams).forEach(key => {
+                finalEndpoint = finalEndpoint.replace(`{${key}}`, pathParams[key]);
+            });
+
             // Build the proxy URL
-            const proxyUrl = `/api/proxy${endpoint}`;
+            let finalUrl = `/api/proxy${finalEndpoint}`;
+
+            // Add query parameters to URL
+            if (Object.keys(queryParams).length > 0) {
+                const queryString = new URLSearchParams(queryParams).toString();
+                finalUrl += `?${queryString}`;
+            }
 
             // Prepare request options
             const requestOptions = {
@@ -70,15 +127,8 @@ export class ApiService {
             };
 
             // Add body for non-GET requests
-            if (method !== 'GET' && params && Object.keys(params).length > 0) {
-                requestOptions.body = JSON.stringify(params);
-            }
-
-            // Add query parameters for GET requests
-            let finalUrl = proxyUrl;
-            if (method === 'GET' && params && Object.keys(params).length > 0) {
-                const queryString = new URLSearchParams(params).toString();
-                finalUrl += `?${queryString}`;
+            if (method !== 'GET' && Object.keys(bodyParams).length > 0) {
+                requestOptions.body = JSON.stringify(bodyParams);
             }
 
             // Make the API call

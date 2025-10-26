@@ -1,6 +1,6 @@
 {
   "name": "mcphy",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Turn your API into a Conversational MCP Server",
   "main": "dist/index.js",
   "bin": {

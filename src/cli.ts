@@ -13,6 +13,7 @@ import { Logger } from './utils/logger';
 import { SwaggerAPIParser } from './parser/swaggerParser';
 import { PostmanParser } from './parser/postmanParser';
 import { ManifestGenerator } from './server/manifest';
+import { ManifestEnhancer } from './server/manifestEnhancer';
 import { startFromConfig } from './server/mcpServer';
 
 const program = new Command();
@@ -202,13 +203,58 @@ program
       console.log('\n🌐 API Configuration');
       const suggestedBaseUrl = isPostman && apiSpec.baseUrl ? apiSpec.baseUrl : 'http://localhost:8000';
       const apiBaseUrl = await prompt(`Enter your API base URL [${suggestedBaseUrl}]: `);
-      const finalApiBaseUrl = apiBaseUrl || suggestedBaseUrl;
+      let finalApiBaseUrl = apiBaseUrl || suggestedBaseUrl;
+      
+      // Normalize 0.0.0.0 to localhost for client requests
+      // 0.0.0.0 is used for server binding, but clients must use localhost
+      finalApiBaseUrl = finalApiBaseUrl.replace(/0\.0\.0\.0/g, 'localhost');
+      
+      // Remove trailing slash for consistency
+      finalApiBaseUrl = finalApiBaseUrl.replace(/\/$/, '');
+      
+      if (finalApiBaseUrl !== (apiBaseUrl || suggestedBaseUrl)) {
+        console.log(`   ℹ️  Normalized URL to: ${finalApiBaseUrl}`);
+      }
 
       // Generate manifest
       console.log('\n⚙️  Generating MCP manifest...');
-      const manifest = isPostman 
+      let manifest = isPostman
         ? await ManifestGenerator.generateFromPostman(apiSpec)
         : await ManifestGenerator.generateFromSwagger(apiSpec);
+
+      // Optionally enhance manifest with LLM
+      let enhancementEnabled = false;
+      if (finalOpenAIKey) {
+        console.log('\n🤖 LLM Manifest Enhancement (Optional)');
+        console.log('   AI can improve your manifest by:');
+        console.log('   • Inferring missing parameter types (e.g., integer, boolean)');
+        console.log('   • Improving field descriptions');
+        console.log('   • Adding usage examples');
+        console.log('   This helps when your API spec has incomplete type information.\n');
+
+        const enhanceChoice = await prompt('Enable LLM manifest enhancement? [Y/n]: ') || 'Y';
+
+        if (enhanceChoice.toLowerCase() !== 'n') {
+          try {
+            console.log('   🔄 Analyzing manifest with AI...');
+            const enhancer = new ManifestEnhancer({
+              enabled: true,
+              apiKey: finalOpenAIKey,
+              model: llmModel,
+            });
+
+            manifest = await enhancer.enhanceManifest(manifest);
+            enhancementEnabled = true;
+            console.log('   ✅ Manifest enhanced successfully!\n');
+          } catch (error) {
+            Logger.warn('LLM enhancement failed, using basic manifest');
+            Logger.error('Enhancement error', error as Error);
+          }
+        } else {
+          console.log('   ℹ️  Skipping LLM enhancement\n');
+        }
+      }
+
       const manifestPath = path.resolve('.mcphy-manifest.json');
       await ManifestGenerator.saveManifest(manifest, manifestPath);
 
@@ -224,6 +270,7 @@ program
         openaiApiKey: finalOpenAIKey,
         apiBaseUrl: finalApiBaseUrl,
         llmModel: llmModel,
+        manifestEnhancement: enhancementEnabled,
       };
 
       const configPath = path.resolve(options.output);

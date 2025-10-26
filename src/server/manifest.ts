@@ -18,7 +18,21 @@ export interface MCPEndpoint {
   method: string;
   description?: string;
   parameters?: MCPParameter[];
+  requestBody?: MCPRequestBody;
   response?: any;
+}
+
+export interface MCPRequestBody {
+  required?: boolean;
+  schema?: any;
+  properties?: Record<string, MCPRequestBodyProperty>;
+  requiredFields?: string[];
+}
+
+export interface MCPRequestBodyProperty {
+  type: string;
+  description?: string;
+  required?: boolean;
 }
 
 export interface MCPParameter {
@@ -93,13 +107,52 @@ export class ManifestGenerator {
 
     // Parse parameters
     if (operation.parameters) {
-      endpoint.parameters = operation.parameters.map((param: any) => ({
-        name: param.name,
-        type: param.schema?.type || 'string',
-        required: param.required || false,
-        description: param.description,
-        location: param.in as 'query' | 'path' | 'body' | 'header',
-      }));
+      endpoint.parameters = operation.parameters.map((param: any) => {
+        // Infer type if missing from spec
+        const inferredType = param.schema?.type || this.inferTypeFromName(param.name, param);
+
+        return {
+          name: param.name,
+          type: inferredType,
+          required: param.required || false,
+          description: param.description,
+          location: param.in as 'query' | 'path' | 'body' | 'header',
+        };
+      });
+    }
+
+    // Parse request body schema (OpenAPI 3.x)
+    if (operation.requestBody) {
+      const requestBody = operation.requestBody;
+      const content = requestBody.content?.['application/json'] || requestBody.content?.['*/*'];
+
+      if (content?.schema) {
+        const schema = content.schema;
+        const properties: Record<string, MCPRequestBodyProperty> = {};
+
+        // Extract properties from schema
+        if (schema.properties) {
+          Object.keys(schema.properties).forEach(propName => {
+            const prop = schema.properties[propName];
+
+            // Infer type from field name if not specified in spec
+            const inferredType = prop.type || this.inferTypeFromName(propName, prop);
+
+            properties[propName] = {
+              type: inferredType,
+              description: prop.description,
+              required: schema.required?.includes(propName) || false,
+            };
+          });
+        }
+
+        endpoint.requestBody = {
+          required: requestBody.required || false,
+          schema: schema,
+          properties: properties,
+          requiredFields: schema.required || [],
+        };
+      }
     }
 
     return endpoint;
@@ -129,5 +182,75 @@ export class ManifestGenerator {
       Logger.warn(`Could not load template from ${templatePath}, using default`);
       return null;
     }
+  }
+
+  /**
+   * Infer type from field name when type is missing from API spec
+   * This is a smart fallback for incomplete documentation
+   */
+  private static inferTypeFromName(fieldName: string, prop: any): string {
+    const nameLower = fieldName.toLowerCase();
+
+    // Check for common ID patterns (usually integers)
+    if (nameLower.endsWith('_id') || nameLower === 'id' || nameLower.startsWith('id_')) {
+      Logger.warn(`Type missing for "${fieldName}", inferring as integer (ID field)`);
+      return 'integer';
+    }
+
+    // Check for count/quantity patterns (integers)
+    if (nameLower.includes('count') || nameLower.includes('quantity') ||
+        nameLower.includes('number') || nameLower.includes('amount')) {
+      Logger.warn(`Type missing for "${fieldName}", inferring as integer (count/quantity)`);
+      return 'integer';
+    }
+
+    // Check for price/cost patterns (numbers/floats)
+    if (nameLower.includes('price') || nameLower.includes('cost') ||
+        nameLower.includes('rate') || nameLower.includes('fee')) {
+      Logger.warn(`Type missing for "${fieldName}", inferring as number (price/cost)`);
+      return 'number';
+    }
+
+    // Check for boolean patterns
+    if (nameLower.startsWith('is_') || nameLower.startsWith('has_') ||
+        nameLower.startsWith('can_') || nameLower.startsWith('should_') ||
+        nameLower.includes('enabled') || nameLower.includes('active')) {
+      Logger.warn(`Type missing for "${fieldName}", inferring as boolean (is_/has_ prefix)`);
+      return 'boolean';
+    }
+
+    // Check for date patterns
+    if (nameLower.includes('date') && !nameLower.includes('update') && !nameLower.includes('time')) {
+      Logger.warn(`Type missing for "${fieldName}", inferring as string (date field)`);
+      return 'string'; // Date fields are strings in JSON
+    }
+
+    // Check for timestamp/datetime patterns
+    if (nameLower.includes('timestamp') || nameLower.includes('datetime') ||
+        (nameLower.includes('created') && nameLower.includes('at')) ||
+        (nameLower.includes('updated') && nameLower.includes('at'))) {
+      Logger.warn(`Type missing for "${fieldName}", inferring as string (timestamp field)`);
+      return 'string';
+    }
+
+    // Check for email patterns
+    if (nameLower.includes('email')) {
+      Logger.warn(`Type missing for "${fieldName}", inferring as string (email field)`);
+      return 'string';
+    }
+
+    // Check for array patterns
+    if (nameLower.endsWith('s') || nameLower.includes('list') || nameLower.includes('array')) {
+      // Check if description mentions array
+      if (prop.description?.toLowerCase().includes('array') ||
+          prop.description?.toLowerCase().includes('list')) {
+        Logger.warn(`Type missing for "${fieldName}", inferring as array`);
+        return 'array';
+      }
+    }
+
+    // Default to string with warning
+    Logger.warn(`Type missing for "${fieldName}", defaulting to string. Consider updating your API spec for better accuracy.`);
+    return 'string';
   }
 }
