@@ -24,31 +24,53 @@
         <!-- Main Chat Area -->
         <div class="flex-1 flex flex-col">
             <!-- Header -->
-            <header class="bg-white border-b border-gray-200 px-6 py-4">
-                <h1 class="text-2xl font-bold text-gray-900">MCPhy</h1>
-                <p class="text-sm text-gray-600 mt-1">Chat with your API using natural language</p>
+            <header class="bg-white border-b border-gray-200 px-6 py-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-xl font-semibold text-gray-900 tracking-tight">MCPhy</h1>
+                        <p class="text-sm text-gray-500 mt-1">Chat with your API using natural language</p>
+                    </div>
+                    <button
+                        id="updateSpecBtn"
+                        class="px-4 py-2 text-sm bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors"
+                    >
+                        Update API Spec
+                    </button>
+                </div>
             </header>
 
             <!-- Chat Container -->
             <div class="flex-1 flex flex-col overflow-hidden">
                 <!-- Messages -->
-                <div id="messages" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div id="messages" class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+                    <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
                         <div class="text-sm">
-                            <p class="font-semibold text-blue-900 mb-2">Welcome to MCPhy!</p>
-                            <p class="text-blue-800 mb-2">Ask questions about your API in plain English. For example:</p>
-                            <ul class="text-blue-700 space-y-1 text-xs">
-                                <li>• "Get all pets created after October 14, 2025"</li>
-                                <li>• "Create a new user"</li>
-                                <li>• "Update product with ID 123"</li>
-                                <li>• "Delete the user with email test@example.com"</li>
+                            <p class="font-medium text-gray-900 mb-2">Welcome to MCPhy</p>
+                            <p class="text-gray-600 mb-3 text-sm">Ask questions about your API in plain English. For example:</p>
+                            <ul class="text-gray-600 space-y-2 text-sm">
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-2">•</span>
+                                    <span>"Get all pets created after October 14, 2025"</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-2">•</span>
+                                    <span>"Create a new user"</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-2">•</span>
+                                    <span>"Update product with ID 123"</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-2">•</span>
+                                    <span>"Delete the user with email test@example.com"</span>
+                                </li>
                             </ul>
                         </div>
                     </div>
                 </div>
 
                 <!-- Input Form -->
-                <div class="bg-white border-t border-gray-200 px-6 py-4">
+                <div class="bg-white border-t border-gray-200 px-6 py-5">
                     <form id="queryForm" class="flex space-x-3">
                         <input
                             type="text"
@@ -56,12 +78,12 @@
                             placeholder="Type your question here..."
                             autocomplete="off"
                             required
-                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none"
                         />
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             id="sendButton"
-                            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
+                            class="px-6 py-3 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
                         >
                             <span id="sendText">Send</span>
                             <span id="loadingText" class="hidden">...</span>
@@ -74,18 +96,89 @@
         <!-- Right Sidebar -->
         <div class="w-80 bg-white border-l border-gray-200 flex flex-col">
             <!-- Available Endpoints -->
-            <div class="p-4 border-b border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-900 mb-3">Available Endpoints</h3>
+            <div class="p-5 border-b border-gray-200">
+                <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Available Endpoints</h3>
                 <div id="availableEndpoints" class="space-y-2 max-h-64 overflow-y-auto">
-                    <div class="text-sm text-gray-500">Loading endpoints...</div>
+                    <div class="text-sm text-gray-400">Loading endpoints...</div>
                 </div>
             </div>
-            
+
             <!-- Called Endpoints -->
-            <div class="p-4 flex-1">
-                <h3 class="text-sm font-semibold text-gray-900 mb-3">Called Endpoints</h3>
+            <div class="p-5 flex-1">
+                <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Called Endpoints</h3>
                 <div id="calledEndpoints" class="space-y-2 max-h-64 overflow-y-auto">
-                    <div class="text-sm text-gray-500">No endpoints called yet</div>
+                    <div class="text-sm text-gray-400">No endpoints called yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Spec Modal -->
+    <div id="updateSpecModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Update API Specification</h2>
+                    <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <!-- Current Spec Info -->
+                <div id="currentSpecInfo" class="mb-6 p-4 bg-gray-50 rounded-md border border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Current Specification</h3>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <p><span class="font-medium">Name:</span> <span id="specName">Loading...</span></p>
+                        <p><span class="font-medium">Version:</span> <span id="specVersion">-</span></p>
+                        <p><span class="font-medium">Endpoints:</span> <span id="specEndpoints">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Upload Area -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Upload New API Specification
+                    </label>
+                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
+                        <div class="space-y-1 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <div class="flex text-sm text-gray-600">
+                                <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-gray-700 hover:text-gray-800">
+                                    <span>Upload a file</span>
+                                    <input id="file-upload" name="file-upload" type="file" class="sr-only" accept=".json,.yaml,.yml">
+                                </label>
+                                <p class="pl-1">or drag and drop</p>
+                            </div>
+                            <p class="text-xs text-gray-500">OpenAPI, Swagger, or Postman JSON</p>
+                        </div>
+                    </div>
+                    <p id="fileName" class="mt-2 text-sm text-gray-600 hidden"></p>
+                </div>
+
+                <!-- Status Message -->
+                <div id="uploadStatus" class="hidden mb-4"></div>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-end space-x-3">
+                    <button
+                        id="cancelUploadBtn"
+                        class="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        id="submitUploadBtn"
+                        disabled
+                        class="px-4 py-2 text-sm bg-gray-800 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Update Specification
+                    </button>
                 </div>
             </div>
         </div>

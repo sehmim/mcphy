@@ -1,0 +1,1 @@
+- Remember the goal of MCPhy: It is to enable everyone to have a conversation with an API backend

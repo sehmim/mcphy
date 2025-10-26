@@ -5,8 +5,10 @@
 import express, { Express, Request, Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs-extra';
+import * as SwaggerParser from 'swagger-parser';
 import { Logger } from '../utils/logger';
-import { MCPManifest } from './manifest';
+import { MCPManifest, ManifestGenerator } from './manifest';
+import { ManifestEnhancer } from './manifestEnhancer';
 import { QueryMatcher } from './queryMatcher';
 
 export interface MCPServerOptions {
@@ -16,6 +18,7 @@ export interface MCPServerOptions {
   openaiApiKey?: string | null;
   apiBaseUrl?: string;
   llmModel?: string;
+  manifestEnhancement?: boolean;
 }
 
 export class MCPServer {
@@ -24,6 +27,9 @@ export class MCPServer {
   private manifest: MCPManifest;
   private queryMatcher: QueryMatcher;
   private apiBaseUrl: string;
+  private openaiApiKey?: string | null;
+  private llmModel?: string;
+  private manifestEnhancement: boolean;
 
   constructor(options: MCPServerOptions) {
     this.app = express();
@@ -31,6 +37,9 @@ export class MCPServer {
     this.manifest = options.manifest;
     this.queryMatcher = new QueryMatcher(options.manifest, options.openaiApiKey, options.llmModel);
     this.apiBaseUrl = options.apiBaseUrl || 'http://localhost:8000';
+    this.openaiApiKey = options.openaiApiKey;
+    this.llmModel = options.llmModel;
+    this.manifestEnhancement = options.manifestEnhancement || false;
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -87,6 +96,107 @@ export class MCPServer {
     // List all endpoints
     this.app.get('/api/endpoints', (_req: Request, res: Response) => {
       res.json(this.manifest.endpoints);
+    });
+
+    // Get current API spec info
+    this.app.get('/api/spec-info', (_req: Request, res: Response) => {
+      res.json({
+        name: this.manifest.name,
+        description: this.manifest.description,
+        version: this.manifest.version,
+        endpointCount: this.manifest.endpoints.length,
+      });
+    });
+
+    // Update API specification
+    this.app.post('/api/update-spec', async (req: Request, res: Response) => {
+      try {
+        const { specContent, specType } = req.body;
+
+        if (!specContent) {
+          return res.status(400).json({
+            error: 'Invalid request',
+            message: 'specContent is required',
+          });
+        }
+
+        Logger.info('Updating API specification...');
+
+        // Parse the spec based on type
+        let parsedSpec;
+        let newManifest: MCPManifest;
+
+        try {
+          // Try to detect format if not specified
+          const content = typeof specContent === 'string' ? JSON.parse(specContent) : specContent;
+
+          if (specType === 'postman' || content.info?.schema?.includes('postman')) {
+            Logger.info('Detected Postman collection format');
+            // For Postman, we need to convert it to OpenAPI format first
+            // For now, try to use it directly with the Postman generator
+            newManifest = await ManifestGenerator.generateFromPostman(content);
+          } else {
+            Logger.info('Detected OpenAPI/Swagger format');
+            // Validate the spec using swagger-parser
+            parsedSpec = await (SwaggerParser as any).validate(content);
+            newManifest = await ManifestGenerator.generateFromSwagger(parsedSpec);
+          }
+        } catch (parseError) {
+          Logger.error('Failed to parse specification', parseError as Error);
+          return res.status(400).json({
+            error: 'Parse failed',
+            message: parseError instanceof Error ? parseError.message : 'Could not parse specification',
+          });
+        }
+
+        // Optionally enhance manifest with LLM
+        if (this.manifestEnhancement && this.openaiApiKey) {
+          try {
+            Logger.info('Enhancing manifest with LLM...');
+            const enhancer = new ManifestEnhancer({
+              enabled: true,
+              apiKey: this.openaiApiKey,
+              model: this.llmModel,
+            });
+
+            newManifest = await enhancer.enhanceManifest(newManifest);
+            Logger.success('Manifest enhanced successfully');
+          } catch (enhanceError) {
+            Logger.warn('LLM enhancement failed, using basic manifest');
+            Logger.error('Enhancement error', enhanceError as Error);
+            // Continue with unenhanced manifest
+          }
+        }
+
+        // Update the server's manifest
+        this.manifest = newManifest;
+
+        // Recreate QueryMatcher with new manifest
+        this.queryMatcher = new QueryMatcher(
+          this.manifest,
+          process.env.OPENAI_API_KEY,
+          undefined
+        );
+
+        Logger.success('API specification updated successfully');
+
+        res.json({
+          success: true,
+          message: 'API specification updated successfully',
+          manifest: {
+            name: this.manifest.name,
+            description: this.manifest.description,
+            version: this.manifest.version,
+            endpointCount: this.manifest.endpoints.length,
+          },
+        });
+      } catch (error) {
+        Logger.error('Failed to update specification', error as Error);
+        res.status(500).json({
+          error: 'Update failed',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
     });
 
     // Natural language query endpoint (POST)
@@ -147,34 +257,63 @@ export class MCPServer {
     this.app.all('/api/proxy/*', async (req: Request, res: Response) => {
       try {
         const targetPath = req.path.replace('/api/proxy', '');
-        const targetUrl = this.getTargetUrl() + targetPath;
-        
+
+        // Build target URL with query string if present
+        let targetUrl = this.getTargetUrl() + targetPath;
+        if (req.url.includes('?')) {
+          const queryString = req.url.split('?')[1];
+          targetUrl += `?${queryString}`;
+        }
+
         Logger.info(`Proxying ${req.method} request to: ${targetUrl}`);
-        
+
         // Prepare headers (exclude host and other problematic headers)
         const headers: Record<string, string> = {};
+
+        // Copy safe headers from the original request
         Object.keys(req.headers).forEach(key => {
-          if (!['host', 'content-length', 'connection'].includes(key.toLowerCase())) {
-            headers[key] = req.headers[key] as string;
+          const lowerKey = key.toLowerCase();
+          if (!['host', 'content-length', 'connection', 'content-type'].includes(lowerKey)) {
+            const value = req.headers[key];
+            if (typeof value === 'string') {
+              headers[key] = value;
+            }
           }
         });
-        
+
+        // Always set Content-Type to application/json for our API calls
+        headers['Content-Type'] = 'application/json';
+
         // Make the actual API call
-        const response = await fetch(targetUrl, {
+        const fetchOptions: any = {
           method: req.method,
           headers,
-          body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
-        });
-        
+        };
+
+        // Add body for non-GET/HEAD requests
+        if (!['GET', 'HEAD'].includes(req.method) && req.body) {
+          // Check if body is already a string (shouldn't happen with express.json(), but just in case)
+          const bodyToSend = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+          fetchOptions.body = bodyToSend;
+
+          Logger.info(`Request body type: ${typeof req.body}`);
+          Logger.info(`Request body: ${JSON.stringify(req.body, null, 2)}`);
+          Logger.info(`Sending body: ${bodyToSend}`);
+        }
+
+        const response = await fetch(targetUrl, fetchOptions);
+
         const responseData = await response.text();
         let jsonData;
-        
+
         try {
           jsonData = JSON.parse(responseData);
         } catch {
           jsonData = responseData;
         }
-        
+
+        Logger.info(`Response status: ${response.status}`);
+
         // Forward the response
         res.status(response.status).json({
           success: response.ok,
@@ -182,7 +321,7 @@ export class MCPServer {
           data: jsonData,
           headers: Object.fromEntries(response.headers.entries()),
         });
-        
+
       } catch (error) {
         Logger.error('Proxy request failed', error as Error);
         res.status(500).json({
@@ -257,13 +396,14 @@ export async function startFromConfig(configPath: string, port: number = 3000): 
     }
 
     // Create and start server
-    const server = new MCPServer({ 
-      port, 
-      manifest, 
-      configPath, 
+    const server = new MCPServer({
+      port,
+      manifest,
+      configPath,
       openaiApiKey: config.openaiApiKey,
       apiBaseUrl: config.apiBaseUrl,
-      llmModel: config.llmModel
+      llmModel: config.llmModel,
+      manifestEnhancement: config.manifestEnhancement || false
     });
     await server.start();
 

@@ -105,20 +105,87 @@ ${apiContext}
 Available Endpoints:
 ${endpointsContext}
 
-Your task: Analyze the user's query and return a JSON response with:
-- endpoint: The matching API path
-- method: HTTP method (uppercase)
-- params: Extracted parameters as key-value pairs (include ALL extracted values from the query)
-- confidence: Match confidence (0-1)
-- reasoning: Why this endpoint matches
-- summary: A clear, user-friendly summary of what will happen (e.g., "Creating a booking for John Doe on 2025-01-15")
-- expectedResponse: What the user should expect back from the API
-- missingInfo: If required parameters are missing, include:
-  - requiredParams: Array of missing parameter names
-  - suggestions: Array of helpful suggestions
-  - exampleQuery: A complete example query with all required info
+CRITICAL INSTRUCTIONS:
 
-Extract ALL relevant information from the query and match it to the correct parameters. Be thorough in parameter extraction.`;
+1. **EXTRACT ALL PARAMETER VALUES** from the user's query, whether they use:
+   - Natural language: "create booking for John Doe"
+   - Structured format: 'customer_name="John Doe"'
+   - Key-value pairs: "customer_name: John Doe"
+   - Any combination of the above
+
+2. **TYPE HANDLING - EXTREMELY IMPORTANT**:
+   Each parameter has a specific type shown in the documentation above. You MUST return the correct JSON type:
+
+   - **Integer fields** (e.g., garage_id: integer):
+     Extract as NUMBER, NOT string
+     Example: {"garage_id": 123} ✓  NOT {"garage_id": "123"} ✗
+
+   - **Number/Float fields** (e.g., price: number):
+     Extract as DECIMAL NUMBER, NOT string
+     Example: {"price": 99.99} ✓  NOT {"price": "99.99"} ✗
+
+   - **Boolean fields** (e.g., is_confirmed: boolean):
+     Extract as true/false, NOT "true"/"false"
+     Example: {"is_confirmed": true} ✓  NOT {"is_confirmed": "true"} ✗
+
+   - **String fields** (e.g., customer_name: string):
+     Extract as string
+     Example: {"customer_name": "John Doe"} ✓
+
+   - **Date fields** (e.g., appointment_date: string with date format):
+     Extract as string in YYYY-MM-DD format
+     Convert from any format: "Jan 15" → "2025-01-15"
+     Example: {"appointment_date": "2025-12-12"} ✓
+
+   - **Time fields** (e.g., appointment_time_slot: string with time format):
+     Extract as string in HH:MM format
+     Example: {"appointment_time_slot": "14:30"} ✓
+
+3. **PARAMETER EXTRACTION RULES**:
+   - Look for exact parameter names in the query
+   - Look for values in quotes: "value" or 'value'
+   - Look for key=value or key="value" patterns
+   - Look for natural language equivalents (e.g., "for John" → customer_name: "John")
+   - Extract dates in any format and convert to YYYY-MM-DD
+   - Extract numbers and parse them as integers or floats based on the type
+
+4. **RETURN JSON RESPONSE** with:
+   - endpoint: The matching API path
+   - method: HTTP method (uppercase)
+   - params: Object with ALL extracted parameters WITH CORRECT TYPES
+   - confidence: Match confidence (0-1)
+   - reasoning: Why this endpoint matches
+   - summary: A clear, user-friendly summary
+   - expectedResponse: What the user should expect back
+   - missingInfo: ONLY if required parameters are missing:
+     - requiredParams: Array of missing parameter names
+     - suggestions: Helpful suggestions for each missing param
+     - exampleQuery: Complete example with all required info
+
+**TYPE-AWARE EXTRACTION EXAMPLES**:
+
+Query: 'create booking garage_id=123 customer_name="John" price=99.99 appointment_date="2025-01-15"'
+Extract: {
+  "garage_id": 123,           ← INTEGER (not "123")
+  "customer_name": "John",    ← STRING
+  "price": 99.99,             ← NUMBER (not "99.99")
+  "appointment_date": "2025-01-15"  ← STRING (date format)
+}
+
+Query: "book for garage 456 on Jan 20th at 2:30pm"
+Extract: {
+  "garage_id": 456,           ← INTEGER from "456"
+  "appointment_date": "2025-01-20",  ← DATE from "Jan 20th"
+  "appointment_time_slot": "14:30"   ← TIME from "2:30pm"
+}
+
+Query: "create user with premium account"
+Extract: {
+  "is_premium": true          ← BOOLEAN from "premium"
+}
+
+Be extremely thorough in extraction and **ALWAYS USE CORRECT JSON TYPES** based on the parameter type in the documentation.`;
+
 
       Logger.info(`Calling ${this.modelName} for query matching...`);
 
@@ -313,7 +380,7 @@ Version: ${this.manifest.version}`;
   }
 
   /**
-   * Build rich endpoints context with full documentation
+   * Build rich endpoints context with full documentation and type information
    */
   private buildRichEndpointsContext(): string {
     return this.manifest.endpoints
@@ -324,16 +391,84 @@ Version: ${this.manifest.version}`;
               (p) =>
                 `  - ${p.name} (${p.type}, ${p.required ? 'required' : 'optional'}, in: ${p.location})${
                   p.description ? `\n    Description: ${p.description}` : ''
-                }`
+                }${this._getTypeExample(p.type, p.name)}`
             )
             .join('\n') || '  No parameters';
+
+        // Add request body schema info with type examples
+        let requestBodyInfo = '';
+        if (endpoint.requestBody && endpoint.requestBody.properties) {
+          const bodyProps = Object.keys(endpoint.requestBody.properties)
+            .map((propName) => {
+              const prop = endpoint.requestBody!.properties![propName];
+              const isRequired = endpoint.requestBody!.requiredFields?.includes(propName);
+              return `  - ${propName} (${prop.type}, ${isRequired ? 'required' : 'optional'})${
+                prop.description ? `\n    Description: ${prop.description}` : ''
+              }${this._getTypeExample(prop.type, propName)}`;
+            })
+            .join('\n');
+
+          requestBodyInfo = `\n   Request Body Fields:\n${bodyProps}`;
+        }
 
         return `${idx + 1}. ${endpoint.method} ${endpoint.path}
    Description: ${endpoint.description || 'No description available'}
    Parameters:
-${params}${endpoint.response ? `\n   Expected Response: ${JSON.stringify(endpoint.response)}` : ''}`;
+${params}${requestBodyInfo}${endpoint.response ? `\n   Expected Response: ${JSON.stringify(endpoint.response)}` : ''}`;
       })
       .join('\n\n');
+  }
+
+  /**
+   * Get type example and format hints for a parameter
+   */
+  private _getTypeExample(type: string, name: string): string {
+    const typeLower = (type || 'string').toLowerCase();
+    const nameLower = name.toLowerCase();
+
+    if (typeLower === 'integer' || typeLower === 'int') {
+      return `\n    Type: integer (return as number, NOT string)\n    Example: 123`;
+    }
+
+    if (typeLower === 'number' || typeLower === 'float' || typeLower === 'double') {
+      return `\n    Type: number (return as decimal, NOT string)\n    Example: 99.99`;
+    }
+
+    if (typeLower === 'boolean' || typeLower === 'bool') {
+      return `\n    Type: boolean (return true/false, NOT "true"/"false")\n    Example: true`;
+    }
+
+    if (typeLower === 'array') {
+      return `\n    Type: array\n    Example: ["item1", "item2"]`;
+    }
+
+    if (typeLower === 'object') {
+      return `\n    Type: object\n    Example: {"key": "value"}`;
+    }
+
+    // Date/time specific handling
+    if (nameLower.includes('date') && !nameLower.includes('time')) {
+      return `\n    Type: string (date format: YYYY-MM-DD)\n    Example: "2025-12-12"`;
+    }
+
+    if (nameLower.includes('time') || nameLower.includes('slot')) {
+      return `\n    Type: string (time format: HH:MM)\n    Example: "14:30"`;
+    }
+
+    if (nameLower.includes('datetime')) {
+      return `\n    Type: string (datetime format: YYYY-MM-DDTHH:MM:SS)\n    Example: "2025-12-12T14:30:00"`;
+    }
+
+    if (nameLower.includes('email')) {
+      return `\n    Type: string (email format)\n    Example: "user@example.com"`;
+    }
+
+    if (nameLower.includes('phone') || nameLower.includes('tel')) {
+      return `\n    Type: string (phone format)\n    Example: "+1234567890"`;
+    }
+
+    // Default string
+    return `\n    Type: string\n    Example: "sample text"`;
   }
 
   /**
@@ -365,13 +500,26 @@ ${params}${endpoint.response ? `\n   Expected Response: ${JSON.stringify(endpoin
 
     return endpoint.parameters.map((param) => {
       const hasValue = param.name in extractedParams;
+
+      // For parameters without explicit location, infer based on method
+      let location = param.location;
+      if (!location) {
+        if (endpoint.path.includes(`{${param.name}}`)) {
+          location = 'path';
+        } else if (['POST', 'PUT', 'PATCH'].includes(endpoint.method)) {
+          location = 'body';
+        } else {
+          location = 'query';
+        }
+      }
+
       return {
         name: param.name,
         value: hasValue ? extractedParams[param.name] : undefined,
         description: param.description,
         type: param.type,
         required: param.required,
-        location: param.location,
+        location: location,
         source: hasValue ? 'extracted' : param.required ? 'missing' : 'optional',
       };
     });
@@ -527,28 +675,48 @@ ${params}${endpoint.response ? `\n   Expected Response: ${JSON.stringify(endpoin
    */
   private extractRequestBodyFields(query: string, endpoint: MCPEndpoint): Record<string, any> {
     const bodyFields: Record<string, any> = {};
-    const queryLower = query.toLowerCase();
 
-    // Look for common patterns in the query
-    const patterns = [
-      // Name patterns
-      { regex: /(?:name|customer)[:\s]+([^,\s]+)/i, field: 'customer_name' },
-      { regex: /(?:email)[:\s]+([^\s]+@[^\s]+)/i, field: 'customer_email' },
-      { regex: /(?:phone)[:\s]+([^\s]+)/i, field: 'customer_phone' },
-      { regex: /(?:garage|shop)[:\s]+([^,\s]+)/i, field: 'garage_name' },
-      { regex: /(?:service|type)[:\s]+([^,\s]+)/i, field: 'service_type' },
-      { regex: /(?:date)[:\s]+(\d{4}-\d{2}-\d{2})/i, field: 'appointment_date' },
-      { regex: /(?:time|slot)[:\s]+([^\s]+)/i, field: 'appointment_time_slot' },
-      { regex: /(?:car|vehicle)[:\s]+([^,\s]+)/i, field: 'car_make' },
-      { regex: /(?:model)[:\s]+([^,\s]+)/i, field: 'car_model' },
-      { regex: /(?:year)[:\s]+(\d{4})/i, field: 'car_year' },
-      { regex: /(?:notes?)[:\s]+([^,]+)/i, field: 'notes' },
-    ];
+    // First, try to extract structured key="value" or key='value' patterns
+    const structuredPattern = /(\w+)\s*=\s*["']([^"']+)["']/g;
+    let match;
+    while ((match = structuredPattern.exec(query)) !== null) {
+      const [, key, value] = match;
+      bodyFields[key] = value;
+    }
 
-    for (const pattern of patterns) {
-      const match = query.match(pattern.regex);
-      if (match) {
-        bodyFields[pattern.field] = match[1];
+    // Also try key=value without quotes
+    const unquotedPattern = /(\w+)\s*=\s*([^\s,]+)/g;
+    while ((match = unquotedPattern.exec(query)) !== null) {
+      const [, key, value] = match;
+      // Only add if not already captured with quotes
+      if (!(key in bodyFields)) {
+        bodyFields[key] = value;
+      }
+    }
+
+    // If no structured patterns found, fall back to natural language patterns
+    if (Object.keys(bodyFields).length === 0) {
+      const queryLower = query.toLowerCase();
+      const patterns = [
+        // Name patterns
+        { regex: /(?:name|customer)[:\s]+([^,\s]+)/i, field: 'customer_name' },
+        { regex: /(?:email)[:\s]+([^\s]+@[^\s]+)/i, field: 'customer_email' },
+        { regex: /(?:phone)[:\s]+([^\s]+)/i, field: 'customer_phone' },
+        { regex: /(?:garage|shop)[:\s]+([^,\s]+)/i, field: 'garage_name' },
+        { regex: /(?:service|type)[:\s]+([^,\s]+)/i, field: 'service_type' },
+        { regex: /(?:date)[:\s]+(\d{4}-\d{2}-\d{2})/i, field: 'appointment_date' },
+        { regex: /(?:time|slot)[:\s]+([^\s]+)/i, field: 'appointment_time_slot' },
+        { regex: /(?:car|vehicle)[:\s]+([^,\s]+)/i, field: 'car_make' },
+        { regex: /(?:model)[:\s]+([^,\s]+)/i, field: 'car_model' },
+        { regex: /(?:year)[:\s]+(\d{4})/i, field: 'car_year' },
+        { regex: /(?:notes?)[:\s]+([^,]+)/i, field: 'notes' },
+      ];
+
+      for (const pattern of patterns) {
+        const match = query.match(pattern.regex);
+        if (match) {
+          bodyFields[pattern.field] = match[1];
+        }
       }
     }
 
@@ -562,16 +730,13 @@ ${params}${endpoint.response ? `\n   Expected Response: ${JSON.stringify(endpoin
     endpoint: MCPEndpoint,
     extractedFields: Record<string, any>
   ): string[] {
-    // This would need to be enhanced based on your API spec structure
-    // For now, we'll use common required fields for booking creation
-    const commonRequiredFields = [
-      'garage_id',
-      'customer_name', 
-      'service_type',
-      'appointment_date'
-    ];
+    // Get required fields from the endpoint's request body schema
+    if (!endpoint.requestBody?.requiredFields) {
+      return [];
+    }
 
-    return commonRequiredFields.filter(field => !(field in extractedFields));
+    const requiredFields = endpoint.requestBody.requiredFields;
+    return requiredFields.filter(field => !(field in extractedFields));
   }
 
   /**

@@ -8,6 +8,7 @@ import { AppState } from './state/appState.js';
 import { MessageRenderer } from './components/messageRenderer.js';
 import { EndpointRenderer } from './components/endpointRenderer.js';
 import { FormHandler } from './components/formHandler.js';
+import { SpecUploadHandler } from './components/specUploadHandler.js';
 
 class MCPhyApp {
     constructor() {
@@ -29,6 +30,8 @@ class MCPhyApp {
             document.getElementById('queryInput'),
             document.getElementById('sendButton')
         );
+
+        this.specUploadHandler = new SpecUploadHandler();
 
         this.init();
     }
@@ -68,6 +71,11 @@ class MCPhyApp {
         // Update loading state when state changes
         this.state.subscribe('isLoading', (loading) => {
             this.formHandler.setLoading(loading);
+        });
+
+        // Register inline form submission handler
+        this.messageRenderer.onFormSubmit((formData) => {
+            this.handleInlineFormSubmit(formData);
         });
     }
 
@@ -111,7 +119,7 @@ class MCPhyApp {
                 confidence: queryResult.confidence
             });
 
-            // Add endpoint match message
+            // Add endpoint match message (with inline form if needed)
             this.messageRenderer.addEndpointMatchMessage(queryResult);
 
             // Check if we can make the API call
@@ -119,18 +127,43 @@ class MCPhyApp {
                                   queryResult.missingInfo.requiredParams.length > 0;
 
             if (!hasMissingInfo) {
-                // Make the actual API call
+                // Make the actual API call immediately
                 await this.makeApiCall(queryResult);
-            } else {
-                // Add a message explaining why we can't make the API call
-                this.messageRenderer.addMessage(
-                    "I can't make the API call yet because some required information is missing. Please provide the missing details and try again.",
-                    'system'
-                );
             }
+            // If missing info, the inline form will be shown and user can fill it
 
         } catch (error) {
             console.error('Error processing query:', error);
+            this.messageRenderer.addMessage(
+                'Sorry, there was an error processing your request.',
+                'error'
+            );
+        } finally {
+            this.state.setLoading(false);
+            this.formHandler.focus();
+        }
+    }
+
+    /**
+     * Handle inline form submission with completed parameters
+     * @param {Object} formData - The form submission data
+     */
+    async handleInlineFormSubmit(formData) {
+        const { endpoint, method, params, result } = formData;
+
+        // Set loading state
+        this.state.setLoading(true);
+
+        try {
+            // Make the API call with completed parameters
+            await this.makeApiCall({
+                endpoint,
+                method,
+                params,
+                parameterDetails: result.parameterDetails
+            });
+        } catch (error) {
+            console.error('Error processing inline form:', error);
             this.messageRenderer.addMessage(
                 'Sorry, there was an error processing your request.',
                 'error'
@@ -147,7 +180,7 @@ class MCPhyApp {
      */
     async makeApiCall(queryResult) {
         try {
-            const { endpoint, method, params } = queryResult;
+            const { endpoint, method, params, parameterDetails } = queryResult;
 
             // Show system message
             this.messageRenderer.addMessage(
@@ -155,8 +188,13 @@ class MCPhyApp {
                 'system'
             );
 
-            // Make the API call
-            const apiResult = await ApiService.makeApiCall(endpoint, method, params);
+            // Make the API call with parameter details for proper routing
+            const apiResult = await ApiService.makeApiCall(
+                endpoint,
+                method,
+                params,
+                parameterDetails
+            );
 
             // Display the API response
             this.messageRenderer.addApiResponseMessage(apiResult, queryResult);
